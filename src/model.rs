@@ -291,7 +291,7 @@ impl Model {
         "".to_string()
     }
 
-    fn act_heart_beat(&mut self, env: &mut ModelEnv) {
+    fn act_heart_beat(&mut self, env: &mut ModelEnv, try_preselect: &mut bool) {
         // save the processed items
         let matcher_stopped = self
             .matcher_control
@@ -322,6 +322,8 @@ impl Model {
             self.num_options += matched.len();
             self.selection.append_sorted_items(matched);
         }
+
+        self.selection.maybe_preselect(try_preselect);
 
         let items_consumed = self.item_pool.num_not_taken() == 0;
         let reader_stopped = self.reader_control.as_ref().map(|c| c.is_done()).unwrap_or(true);
@@ -484,7 +486,7 @@ impl Model {
 
         self.selection.act_select_matched(current_run_num(), matched_item);
 
-        self.act_heart_beat(env);
+        self.act_heart_beat(env, &mut false);
     }
 
     pub fn start(&mut self) -> Option<SkimOutput> {
@@ -498,6 +500,8 @@ impl Model {
 
         self.reader_control = Some(self.reader.run(&env.cmd));
 
+        let mut try_preselect = true;
+
         // In the event loop, there might need
         let mut next_event = Some((Key::Null, Event::EvHeartBeat));
         loop {
@@ -509,7 +513,7 @@ impl Model {
                 Event::EvHeartBeat => {
                     // consume following HeartBeat event
                     next_event = self.consume_additional_event(&Event::EvHeartBeat);
-                    self.act_heart_beat(&mut env);
+                    self.act_heart_beat(&mut env, &mut try_preselect);
                     self.handle_select1_or_exit0();
                 }
 

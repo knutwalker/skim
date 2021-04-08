@@ -57,6 +57,8 @@ pub struct Selection {
     latest_select_run_num: u32,
     pre_selected_watermark: usize,
     selector: Option<Rc<dyn Selector>>,
+    preselect_to: Option<u32>,
+    tac: bool,
 }
 
 impl Selection {
@@ -78,6 +80,8 @@ impl Selection {
             latest_select_run_num: 0,
             pre_selected_watermark: 0,
             selector: None,
+            preselect_to: None,
+            tac: false,
         }
     }
 
@@ -107,6 +111,7 @@ impl Selection {
 
         if options.tac {
             self.items.tac(true);
+            self.tac = true;
         }
 
         if options.nosort {
@@ -119,6 +124,7 @@ impl Selection {
 
         self.keep_right = options.keep_right;
         self.selector = options.selector.clone();
+        self.preselect_to = options.pre_select;
     }
 
     pub fn theme(mut self, theme: Arc<ColorTheme>) -> Self {
@@ -175,6 +181,28 @@ impl Selection {
             }
         }
         debug!("done perform pre selection for {} items", items.len());
+    }
+
+    pub fn maybe_preselect(&mut self, try_preselect: &mut bool) {
+        if self.multi_selection
+            || self.preselect_to.is_none()
+            || self.height.load(Ordering::Relaxed) == 0
+            || std::mem::take(try_preselect) == false
+        {
+            return;
+        }
+        if let Some(pre_select) = self.preselect_to {
+            debug!("perform pre select for single selection to item {}", pre_select);
+            let pre_select = pre_select.min(i32::MAX as u32) as i32;
+            let mut diff = pre_select;
+            if self.tac {
+                diff = (self.items.len() as i32) - diff - 1;
+            };
+            if self.reverse {
+                diff = -diff
+            };
+            self.act_move_line_cursor(diff);
+        }
     }
 
     // > 0 means move up, < 0 means move down
