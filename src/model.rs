@@ -584,6 +584,17 @@ impl Model {
                     });
                 }
 
+                Event::EvActCancel => {
+                    next_event = if env.in_query_mode && env.query.is_empty()
+                        || !env.in_query_mode && env.cmd_query.is_empty()
+                    {
+                        Some((key, Event::EvActAbort))
+                    } else {
+                        Some((key, Event::EvActKillLine))
+                    };
+                    continue;
+                }
+
                 Event::EvActDeleteCharEOF => {
                     if env.in_query_mode && env.query.is_empty() || !env.in_query_mode && env.cmd_query.is_empty() {
                         next_event = Some((key, Event::EvActAbort));
